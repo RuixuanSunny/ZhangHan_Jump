@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset= "utf-8">
+    <title>Jump!</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <canvas id="myCanvas"></canvas>
+    <script>
+     var c = document.getElementById("myCanvas");
+        var ctx = c.getContext("2d");
+  
+        var width = 400,
+            height = 625;
+            points = 0,
+  
+        c.width = width;
+        c.height = height;
+        //Here controls the background color:
+        var bgcolor = function(){
+            ctx.fillStyle = '#061D78';
+            ctx.beginPath();
+            ctx.rect(0, 0, width, height);
+            ctx.closePath();
+            ctx.fill();
+        }
+        //Here draws clouds:
+        var Clouds = 10, clouds = [];
+
+        for (var i = 0; i < Clouds; i++) {
+            clouds.push([Math.random() * width, Math.random() * height, Math.random() * 100, Math.random() / 2]);
+        }
+
+        var DrawClouds = function(){
+            for (var i = 0; i < Clouds; i++) {
+                ctx.fillStyle = 'rgba(255, 255, 255, ' + clouds[i][3] + ')';
+                ctx.beginPath();
+                ctx.arc(clouds[i][0], clouds[i][1], clouds[i][2], 0, Math.    PI * 2,         true);
+                ctx.closePath();
+                ctx.fill();
+            }
+        };
+        //Here makes the animation for clouds:
+        var MoveClouds = function(deltaY){
+            for (var i = 0; i < Clouds; i++) {
+                if (clouds[i][1] - clouds[i][2] > height) {
+                    clouds[i][0] = Math.random() * width;
+                    clouds[i][2] = Math.random() * 100;
+                    clouds[i][1] = 0 - clouds[i][2];
+                    clouds[i][3] = Math.random() / 2;
+                } else {
+                    clouds[i][1] += deltaY;
+                }
+            }
+        };
+        //Here draws the player character:
+        var player = new (function() {
+            this.image = new Image();
+            this.image.src = "Sailor_Zhang.png";
+            this.width = 120;
+            this.height = 120;
+            this.X = 0;
+            this.Y = 0;
+            this.frames = 1;
+            this.actualFrame = 0;
+            this.interval = 0;
+            this.Jumping = false;
+            this.Falling = false;
+            this.jumpSpeed = 0;
+            this.fallSpeed = 0;
+
+            this.setPosition = function(x, y){
+            this.X = x;
+            this.Y = y;
+            }
+            //Here makes the character move:
+            this.draw = function(){
+                try {
+                    ctx.drawImage(this.image, 0, this.height * this.actualFrame, this.width, this.height, this.X, this.Y, this.width, this.height);
+                } catch (e) {
+                }
+                if (this.interval == 4 ) {
+                    if (this.actualFrame == this.frames) {
+                        this.actualFrame = 0;
+                    } else {
+                        this.actualFrame++;
+                    }
+                this.interval = 0;
+                }
+                this.interval++;
+            }
+
+            this.jump = function() {
+                if (!this.Jumping && !this.Falling) {
+                    this.fallSpeed = 0;
+                    this.Jumping = true;
+                    this.jumpSpeed = 17;
+                }
+            }
+
+            this.checkJump = function() {     
+                if (this.Y > height*0.4) {
+                    this.setPosition(this.X, this.Y - this.jumpSpeed);
+                } else {
+                	if (this.jumpSpeed > 10) points++;
+                    MoveClouds(this.jumpSpeed * 0.5); 
+
+                    platforms.forEach(function(platform, ind){
+                        platform.y += this.jumpSpeed;
+    
+                        if (platform.y > height) {
+                            var type = ~~(Math.random() * 5);
+                            if (type == 0) 
+                                type = 1;
+                            else 
+                                type = 0;
+                            platforms[ind] = new Platform(Math.random() * (width - platformWidth), platform.y - height, type);
+                        }
+                    });
+                }
+    
+    
+                this.jumpSpeed--;
+                if (this.jumpSpeed == 0) {
+                    this.Jumping = false;
+                    this.Falling = true;
+                    this.fallSpeed = 1;
+                }
+
+            }
+
+            this.checkFall = function(){
+                if (this.Y < height - this.height) {
+                    this.setPosition(this.X, this.Y + this.fallSpeed);
+                    this.fallSpeed++;
+                } else {
+                    this.fallStop();
+                }
+            }
+
+            this.fallStop = function(){
+                this.isFalling = false;
+                this.fallSpeed = 0;
+                this.jump();    
+            }
+
+            this.moveLeft = function(){
+                if (this.X > 0) {
+                    this.setPosition(this.X - 5, this.Y);
+                }
+            }
+
+            this.moveRight = function(){
+                if (this.X + this.width < width) {
+                    this.setPosition(this.X + 5, this.Y);
+                }
+            }
+
+            document.onmousemove = function(e){
+                if (player.X + c.offsetLeft > e.pageX) {
+                    player.moveLeft();
+                } else if (player.X + c.offsetLeft < e.pageX) {
+                    player.moveRight();
+                }
+            }
+
+        })();
+
+        player.setPosition(~~((width-player.width)/2), ~~((height - player.height)/2));
+        player.jump();
+        
+        var Platform = function(x, y, type){
+
+            this.firstColor = '#FF8C00';
+            this.secondColor = '#EEEE00';
+            this.onCollide = function(){
+            player.fallStop();
+            };
+
+            if (type === 1) {
+                this.firstColor = '#AADD00';
+                this.secondColor = '#698B22';
+                this.onCollide = function(){
+                player.fallStop();
+                player.jumpSpeed = 50;
+                };
+            }
+            
+            this.x = ~~x;
+            this.y = y;
+            this.type = type;
+    
+            this.draw = function(){
+                ctx.fillStyle = 'rgba(230, 129, 25, 1)';
+                ctx.fillRect(this.x, this.y, platformWidth, platformHeight);
+            };
+
+            this.isMoving = ~~(Math.random() * 2);
+            this.direction= ~~(Math.random() * 2) ? -1 : 1;
+
+            return this;
+        };
+
+        var nrOfPlatforms = 7, 
+            platforms = [],
+            platformWidth = 80,
+            platformHeight = 20;
+
+        var generatePlatforms = function(){
+            var position = 0, type;
+            
+            for (var i = 0; i < nrOfPlatforms; i++) {
+            type = ~~(Math.random()*5);
+            if (type == 0) type = 1;
+            else type = 0;
+            
+            platforms[i] = new Platform(Math.random()*(width-platformWidth),    position        ,type);
+            
+            if (position < height - platformHeight) 
+            position += ~~(height / nrOfPlatforms);
+            }
+        
+        }();
+
+        var checkCollision = function() {
+            platforms.forEach(function(e, ind) {
+                if (
+                    (player.isFalling) &&            
+                    (player.X < e.x + platformWidth) && 
+                    (player.X + player.width > e.x) && 
+                    (player.Y + player.height > e.y) && 
+                    (player.Y + player.height < e.y + platformHeight)
+                   ) {
+                        e.onCollide();
+                     }
+            })
+        };
+        
+        var GameLoop = function(){
+            bgcolor();
+            MoveClouds(5);
+            DrawClouds();
+
+            ctx.fillStyle = "yellow";
+            ctx.fillText("POINTS:" + points, 10, height-10);
+
+            player.draw();
+            if (player.Jumping) player.checkJump();
+            if (player.Falling) player.checkFall();
+            checkCollision();
+
+            platforms.forEach(function(platform, index){
+                platform.draw();
+                if (platform.isMoving) {
+                    if (platform.x < 0) {
+                        platform.direction = 1;
+                    } else if (platform.x > width - platformWidth) {
+                        platform.direction = -1;
+                    }
+                platform.x += platform.direction * (index / 2) * ~~(points / 100);
+                }
+            });
+
+            
+            
+            gLoop = setTimeout(GameLoop, 1000 / 50);
+        };
+        GameLoop();
+
+    </script>
+  </body>
+</html>
